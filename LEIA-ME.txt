@@ -1,0 +1,33 @@
+MOLDURAS ABaC V2
+
+CORREÇÕES:
+- captura só ocorre depois de a câmera estar pronta;
+- fallback para escolher foto da galeria;
+- cache-busting no frames.json e PNG;
+- mensagens de erro;
+- câmera frontal/trasera;
+- saída 1080x1920;
+- compartilhamento ou download.
+
+SUBSTITUIR NO GITHUB:
+Envie index.html, frames.json, robots.txt e a pasta assets para a RAIZ do repositório MoldurasABaC.
+Ao substituir, confirme a alteração/commit.
+
+URL DA SEMANA DO LENÇO:
+https://orlovics-dev.github.io/MoldurasABaC/?f=semana-do-lenco-2026&k=_x1q-mlnIH0QNkrrPdjHtg
+
+COMO SUBIR NOVA MOLDURA:
+1. Prepare PNG Alpha em 1080x1920.
+2. GitHub > repositório MoldurasABaC > assets > Adicionar arquivo > Carregar arquivos.
+3. Envie o PNG.
+4. Edite frames.json e acrescente outro objeto dentro de "frames".
+Exemplo:
+{
+ "id":"nome-da-campanha-2026",
+ "name":"Nome da Campanha 2026",
+ "token":"CRIE-UM-CODIGO-DIFICIL",
+ "image":"assets/nome-da-campanha-2026.png",
+ "active":true
+}
+5. A URL será:
+https://orlovics-dev.github.io/MoldurasABaC/?f=ID&k=TOKEN
