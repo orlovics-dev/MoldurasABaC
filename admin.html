@@ -1,0 +1,18 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Gerador de Moldura — Molduras ABaC</title>
+<style>body{font-family:Arial;background:#0b2741;color:#fff;max-width:760px;margin:0 auto;padding:24px}input,button,textarea{width:100%;padding:12px;margin:7px 0;border-radius:10px;border:0}button{font-weight:700}textarea{min-height:150px}small{color:#bdd0df}</style></head><body>
+<h1>Molduras ABaC — auxiliar</h1>
+<p>Use esta página apenas como auxiliar local para criar um novo ID e token. Depois adicione a moldura em <b>frames.json</b>.</p>
+<label>Nome da campanha</label><input id="name" placeholder="Ex.: Ministério da Mulher">
+<label>ID/slug</label><input id="id" placeholder="ministerio-da-mulher-2026">
+<label>Arquivo PNG</label><input id="img" placeholder="assets/ministerio-da-mulher-2026.png">
+<button onclick="gerar()">Gerar configuração</button>
+<textarea id="out" readonly></textarea>
+<script>
+function rand(){return crypto.getRandomValues(new Uint32Array(4)).join("").slice(0,22)}
+function gerar(){
+ const id=document.getElementById('id').value.trim();
+ const obj={id, name:document.getElementById('name').value.trim(), token:rand(), image:document.getElementById('img').value.trim(), active:true, start:null, end:null};
+ document.getElementById('out').value=JSON.stringify(obj,null,2)+"\n\nURL após publicar:\n"+location.origin+location.pathname.replace('admin.html','')+"?f="+encodeURIComponent(obj.id)+"&k="+encodeURIComponent(obj.token);
+}
+</script></body></html>

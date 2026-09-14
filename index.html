@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <meta name="theme-color" content="#062b4e" />
+  <title>Molduras ABaC</title>
+  <style>
+    :root{
+      --bg:#061b2e; --panel:#0a2c4a; --text:#fff; --muted:#b7c8d8;
+      --accent:#14b9f1; --yellow:#ffd400; --danger:#ff6b6b;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:linear-gradient(180deg,#061b2e,#0a2c4a);font-family:Arial,Helvetica,sans-serif;color:var(--text)}
+    body{display:flex;justify-content:center}
+    .app{width:min(100%,520px);padding:16px 14px 28px}
+    .brand{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:2px 0 12px}
+    .brand h1{font-size:21px;margin:0}
+    .badge{font-size:12px;background:#ffffff18;border:1px solid #ffffff22;padding:6px 9px;border-radius:999px;color:#d9e8f4}
+    .notice{background:#ffffff0f;border:1px solid #ffffff1e;border-radius:16px;padding:18px;text-align:center}
+    .notice h2{margin:0 0 8px;font-size:20px}
+    .notice p{margin:0;color:var(--muted);line-height:1.45}
+    .stage-wrap{display:none}
+    .stage{
+      position:relative;width:100%;aspect-ratio:9/16;overflow:hidden;border-radius:22px;
+      background:#000;box-shadow:0 18px 50px #0008;border:1px solid #ffffff22;
+    }
+    video, #photoPreview, #frame {
+      position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    }
+    video{transform:scaleX(-1)}
+    video.back{transform:none}
+    #photoPreview{display:none}
+    #frame{object-fit:fill;pointer-events:none;z-index:3}
+    .controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+    button{
+      border:0;border-radius:14px;padding:13px 14px;font-weight:700;font-size:15px;cursor:pointer;
+      background:#fff;color:#07223a
+    }
+    button.primary{background:var(--accent);color:#04233a}
+    button.yellow{background:var(--yellow);color:#1f2d38}
+    button.secondary{background:#ffffff18;color:#fff;border:1px solid #ffffff26}
+    button:disabled{opacity:.45;cursor:not-allowed}
+    .wide{grid-column:1/-1}
+    .helper{font-size:12px;color:var(--muted);text-align:center;margin-top:10px;line-height:1.4}
+    canvas{display:none}
+    .error{color:#ffd6d6}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="brand">
+      <h1>Molduras ABaC</h1>
+      <span class="badge">Associação Bahia Central</span>
+    </div>
+
+    <section id="notice" class="notice">
+      <h2>Acesse pelo QR Code</h2>
+      <p>Esta página abre somente quando um código válido de moldura é informado.</p>
+    </section>
+
+    <section id="stageWrap" class="stage-wrap">
+      <div id="stage" class="stage">
+        <video id="camera" autoplay playsinline muted></video>
+        <img id="photoPreview" alt="" />
+        <img id="frame" alt="Moldura da campanha" />
+      </div>
+
+      <div class="controls">
+        <button id="switchBtn" class="secondary">Trocar câmera</button>
+        <button id="captureBtn" class="primary">Tirar foto</button>
+        <button id="retakeBtn" class="secondary" style="display:none">Refazer</button>
+        <button id="shareBtn" class="yellow" style="display:none">Compartilhar</button>
+        <button id="saveBtn" class="wide" style="display:none">Salvar imagem</button>
+      </div>
+      <p class="helper">A câmera funciona em HTTPS. No iPhone e Android, permita o acesso à câmera quando solicitado.</p>
+    </section>
+    <canvas id="canvas" width="1080" height="1920"></canvas>
+  </main>
+
+<script>
+const qs = new URLSearchParams(location.search);
+const frameId = qs.get("f");
+const key = qs.get("k");
+const notice = document.getElementById("notice");
+const stageWrap = document.getElementById("stageWrap");
+const camera = document.getElementById("camera");
+const frameImg = document.getElementById("frame");
+const photoPreview = document.getElementById("photoPreview");
+const canvas = document.getElementById("canvas");
+const captureBtn = document.getElementById("captureBtn");
+const switchBtn = document.getElementById("switchBtn");
+const retakeBtn = document.getElementById("retakeBtn");
+const shareBtn = document.getElementById("shareBtn");
+const saveBtn = document.getElementById("saveBtn");
+
+let stream = null;
+let facingMode = "user";
+let finalBlob = null;
+let activeFrame = null;
+
+function validByDate(item){
+  const now = new Date();
+  const start = item.start ? new Date(item.start+"T00:00:00") : null;
+  const end = item.end ? new Date(item.end+"T23:59:59") : null;
+  return item.active && (!start || now >= start) && (!end || now <= end);
+}
+
+async function boot(){
+  try{
+    const cfg = await fetch("frames.json", {cache:"no-store"}).then(r=>r.json());
+    activeFrame = cfg.frames.find(x => x.id === frameId && x.token === key && validByDate(x));
+    if(!activeFrame) return;
+    document.title = `${activeFrame.name} — Molduras ABaC`;
+    frameImg.src = activeFrame.image;
+    notice.style.display = "none";
+    stageWrap.style.display = "block";
+    await startCamera();
+  }catch(e){
+    notice.innerHTML = `<h2>Não foi possível abrir a moldura</h2><p class="error">Verifique o acesso e tente novamente.</p>`;
+  }
+}
+
+async function startCamera(){
+  if(stream) stream.getTracks().forEach(t=>t.stop());
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:facingMode}, width:{ideal:1080}, height:{ideal:1920}},
+      audio:false
+    });
+    camera.srcObject = stream;
+    camera.classList.toggle("back", facingMode === "environment");
+  }catch(e){
+    notice.style.display = "block";
+    notice.innerHTML = `<h2>Permissão de câmera necessária</h2><p class="error">Autorize a câmera no navegador e recarregue a página.</p>`;
+    stageWrap.style.display = "none";
+  }
+}
+
+function coverCrop(videoW, videoH, targetW, targetH){
+  const srcRatio = videoW/videoH, dstRatio = targetW/targetH;
+  let sx=0, sy=0, sw=videoW, sh=videoH;
+  if(srcRatio > dstRatio){
+    sw = videoH*dstRatio; sx=(videoW-sw)/2;
+  }else{
+    sh = videoW/dstRatio; sy=(videoH-sh)/2;
+  }
+  return {sx,sy,sw,sh};
+}
+
+async function capture(){
+  const ctx=canvas.getContext("2d");
+  ctx.clearRect(0,0,1080,1920);
+  const vw=camera.videoWidth, vh=camera.videoHeight;
+  if(!vw || !vh) return;
+  const c=coverCrop(vw,vh,1080,1920);
+
+  ctx.save();
+  if(facingMode==="user"){
+    ctx.translate(1080,0); ctx.scale(-1,1);
+  }
+  ctx.drawImage(camera,c.sx,c.sy,c.sw,c.sh,0,0,1080,1920);
+  ctx.restore();
+
+  const fi=new Image();
+  fi.src=frameImg.src;
+  await fi.decode();
+  ctx.drawImage(fi,0,0,1080,1920);
+
+  finalBlob = await new Promise(res=>canvas.toBlob(res,"image/png",1));
+  const url=URL.createObjectURL(finalBlob);
+  photoPreview.src=url;
+  photoPreview.style.display="block";
+  camera.style.display="none";
+  captureBtn.style.display="none";
+  switchBtn.style.display="none";
+  retakeBtn.style.display="block";
+  shareBtn.style.display="block";
+  saveBtn.style.display="block";
+}
+
+function retake(){
+  finalBlob=null;
+  photoPreview.style.display="none";
+  camera.style.display="block";
+  captureBtn.style.display="block";
+  switchBtn.style.display="block";
+  retakeBtn.style.display="none";
+  shareBtn.style.display="none";
+  saveBtn.style.display="none";
+}
+
+async function share(){
+  if(!finalBlob) return;
+  const file=new File([finalBlob],"moldura-abac.png",{type:"image/png"});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    await navigator.share({files:[file], title:activeFrame.name});
+  }else{
+    save();
+    alert("Imagem salva. Abra o Instagram e publique nos Stories.");
+  }
+}
+function save(){
+  if(!finalBlob) return;
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(finalBlob);
+  a.download="moldura-abac.png";
+  a.click();
+}
+switchBtn.onclick=async()=>{facingMode=facingMode==="user"?"environment":"user"; await startCamera();}
+captureBtn.onclick=capture;
+retakeBtn.onclick=retake;
+shareBtn.onclick=share;
+saveBtn.onclick=save;
+
+boot();
+</script>
+</body>
+</html>

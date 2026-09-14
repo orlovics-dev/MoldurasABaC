@@ -1,0 +1,14 @@
+{
+  "siteName": "Molduras ABaC",
+  "frames": [
+    {
+      "id": "semana-do-lenco-2026",
+      "name": "Semana do Lenço 2026",
+      "token": "_x1q-mlnIH0QNkrrPdjHtg",
+      "image": "assets/semana-do-lenco-2026.png",
+      "active": true,
+      "start": "2026-01-01",
+      "end": "2026-12-31"
+    }
+  ]
+}
